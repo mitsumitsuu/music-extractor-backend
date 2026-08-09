@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
-import { Play, Loader2, Music2, Settings2, ChevronDown, User, Key, Mail, X, FileText, Link as LinkIcon, Upload, Download, Copy, Plus, Settings, AlertCircle, RefreshCw, Share2, ListMusic, FileSpreadsheet, FileImage, Paperclip } from "lucide-react";
+import { Play, Loader2, Music2, Settings2, ChevronDown, User, Key, Mail, X, FileText, Link as LinkIcon, Upload, Download, Copy, Image as ImageIcon, Plus, Settings, MessageSquare, AlertCircle, RefreshCw, Share2, ListMusic, FileSpreadsheet, FileImage, Paperclip } from "lucide-react";
 import * as XLSX from "xlsx";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -36,19 +36,10 @@ type PresetData = {
   filename: string;
 };
 
-type ResultItem = {
-  曲名: string;
-  合成音声?: string;
-  BPM?: string | number;
-  Key?: string;
-  MMD?: string;
-  URL?: string;
-}
-
 const createDefaultPreset = (id: number): PresetData => ({
   id,
   name: `プリセット ${id}`,
-  useUrl: true, usePaste: false, useFile: false,
+  useUrl: false, usePaste: false, useFile: false,
   url: "", pastedText: "", fileData: "", fileName: "",
   mode: "⚡ 高速モード", ytKey: "", geminiKey: "",
   minV: "", maxV: "", minC: "", maxC: "",
@@ -89,7 +80,6 @@ export default function Home() {
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [editingTabId, setEditingTabId] = useState<number | null>(null);
 
-  // 🌟 ドラッグ範囲を制限するためのRef
   const groupRef = useRef<HTMLDivElement>(null);
 
   const activePreset = presets.find(p => p.id === activeTabId) || presets[0];
@@ -119,7 +109,12 @@ export default function Home() {
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
-  
+  useEffect(() => {
+    if (showSplash) {
+      const timer = setTimeout(() => setShowSplash(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSplash]);
 
   const handlePrefChange = (type: "delete" | "init", checked: boolean) => {
     if (type === "delete") { setHideDeleteWarning(checked); localStorage.setItem("hideDeleteWarning", String(checked)); }
@@ -187,7 +182,8 @@ export default function Home() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
-      const base64 = event.target?.result?.toString().split(',')[1];
+      const resultStr = event.target?.result as string;
+      const base64 = resultStr ? resultStr.split(',')[1] : "";
       if (base64) updatePreset({ fileData: base64, fileName: file.name });
     };
     reader.readAsDataURL(file);
@@ -253,7 +249,7 @@ export default function Home() {
   const downloadXML = () => {
     let content = `<?xml version="1.0" encoding="UTF-8"?><DJ_PLAYLISTS Version="1.0.0"><COLLECTION>\n`;
     results.forEach((r, i) => {
-      const escapeXml = (unsafe: string) => (unsafe||'').replace(/[<>&'"]/g, c => {
+      const escapeXml = (unsafe?: string) => String(unsafe || '').replace(/[<>&'"]/g, c => {
         switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; default: return c; }
       });
       content += `<TRACK TrackID="${i+1}" Name="${escapeXml(r.曲名)}" Artist="${escapeXml(r.合成音声)}" BPM="${r.BPM==='不明'?0:r.BPM}" Tonality="${escapeXml(r.Key)}" Location="${escapeXml(r.URL)}" />\n`;
@@ -265,7 +261,7 @@ export default function Home() {
   };
 
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<ResultItem[]>([]);
+  const [results, setResults] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
@@ -341,18 +337,29 @@ export default function Home() {
         method: "POST", headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          username: user, 
-          url: activePreset.useUrl ? activePreset.url : "", 
-          pasted_text: activePreset.usePaste ? activePreset.pastedText : "",
-          file_data: activePreset.useFile ? activePreset.fileData : "", 
-          file_name: activePreset.useFile ? activePreset.fileName : "",
-          mode: activePreset.mode, yt_key: activePreset.ytKey, gemini_key: activePreset.geminiKey, 
-          exclude_words: activePreset.excludeWords, target_vocal: activePreset.targetVocal,
-          target_producer: activePreset.targetProducer, target_bpm: activePreset.targetBpm || 0,
-          target_key: activePreset.targetKey, theme: activePreset.theme, require_mmd: activePreset.requireMmd,
-          multi_only: activePreset.multiOnly, min_v: activePreset.minV || 0, max_v: activePreset.maxV || 0,
-          min_c: activePreset.minC || 0, max_c: activePreset.maxC || 0,
-          add_lyrics: activePreset.addLyrics, add_analysis: activePreset.addAnalysis, add_bpm: activePreset.addBpm
+          username: user || "", 
+          url: activePreset.useUrl ? (activePreset.url || "") : "", 
+          pasted_text: activePreset.usePaste ? (activePreset.pastedText || "") : "",
+          file_data: activePreset.useFile ? (activePreset.fileData || "") : "", 
+          file_name: activePreset.useFile ? (activePreset.fileName || "") : "",
+          mode: activePreset.mode || "", 
+          yt_key: activePreset.ytKey || "", 
+          gemini_key: activePreset.geminiKey || "", 
+          exclude_words: activePreset.excludeWords || "", 
+          target_vocal: activePreset.targetVocal || "",
+          target_producer: activePreset.targetProducer || "", 
+          target_bpm: activePreset.targetBpm || 0,
+          target_key: activePreset.targetKey || "", 
+          theme: activePreset.theme || "", 
+          require_mmd: activePreset.requireMmd || false,
+          multi_only: activePreset.multiOnly || false, 
+          min_v: activePreset.minV || 0, 
+          max_v: activePreset.maxV || 0,
+          min_c: activePreset.minC || 0, 
+          max_c: activePreset.maxC || 0,
+          add_lyrics: activePreset.addLyrics || false, 
+          add_analysis: activePreset.addAnalysis || false, 
+          add_bpm: activePreset.addBpm || false
         })
       });
       const data = await res.json();
@@ -367,13 +374,6 @@ export default function Home() {
   };
 
   const fontStyle = { fontFamily: '"UD Digi Kyokasho N-R", "UD デジタル 教科書体 N-R", "UD Digi Kyokasho N-B", "BIZ UDPGothic", sans-serif' };
-
-  useEffect(() => {
-    if (showSplash) {
-      const timer = setTimeout(() => setShowSplash(false), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSplash]);
 
   return (
     <main style={fontStyle} className="w-full min-h-screen overflow-x-hidden bg-slate-100 text-slate-800 relative selection:bg-indigo-300 selection:text-indigo-900 pb-32">
@@ -409,14 +409,13 @@ export default function Home() {
             <div className="max-w-[95%] mx-auto px-4 md:px-8">
               <div className="flex overflow-x-auto gap-1 pb-0 scrollbar-hide items-end min-w-0">
                 
-                {/* 🌟 ドラッグ範囲を制限するコンテナ */}
                 <Reorder.Group as="div" ref={groupRef} axis="x" values={presets} onReorder={setPresets} className="flex gap-1 pr-2 relative">
                   {presets.map((p) => (
                     <Reorder.Item 
                       key={p.id} 
                       value={p}
-                      dragConstraints={groupRef} // 🌟 グループの外へ移動できないように制限
-                      dragElastic={0}            // 🌟 限界を超えてバウンドする動きを無効化
+                      dragConstraints={groupRef}
+                      dragElastic={0}
                       dragListener={editingTabId !== p.id}
                       className={`relative cursor-pointer px-4 md:px-6 py-3 md:py-4 rounded-t-xl font-bold text-base md:text-xl transition-colors border-t-2 border-x-2 border-b-0 flex items-center justify-between gap-2 md:gap-4 group ${activeTabId === p.id ? 'bg-white text-indigo-700 border-indigo-200 z-20 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]' : 'bg-slate-200 text-slate-500 border-slate-300 hover:bg-slate-300 z-10'}`}
                     >
@@ -450,7 +449,7 @@ export default function Home() {
           <div className="max-w-[95%] mx-auto px-4 md:px-8 relative z-30">
             <div className="bg-white rounded-b-3xl rounded-tr-3xl p-4 md:p-10 shadow-xl border border-indigo-100 min-w-0 relative z-30 -mt-[1px]">
               {activeTabId !== 'playlist' ? (
-                <>
+                <div className="w-full">
                   <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-200">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-lg md:text-xl text-indigo-800 border-l-4 border-indigo-500 pl-3">現在のプリセット: {activePreset.name}</span>
@@ -466,7 +465,6 @@ export default function Home() {
                     <div className="space-y-4">
                       <h3 className="font-bold text-xl md:text-2xl text-slate-700 border-l-4 border-indigo-500 pl-3 md:pl-4">1. 解析元データの入力 (複数選択可)</h3>
                       
-                      {/* 🌟 チェックボックスでの表示切り替え */}
                       <div className="flex flex-col gap-4 bg-slate-50 p-6 md:p-8 rounded-2xl border-2 border-slate-200">
                         <label className="flex items-center gap-4 cursor-pointer"><input type="checkbox" checked={activePreset.useUrl} onChange={(e) => updatePreset({useUrl: e.target.checked})} className="w-6 h-6 text-indigo-600 rounded" /><span className="font-bold">🔗 YouTube/SoundCloudのURLから抽出</span></label>
                         <label className="flex items-center gap-4 cursor-pointer"><input type="checkbox" checked={activePreset.usePaste} onChange={(e) => updatePreset({usePaste: e.target.checked})} className="w-6 h-6 text-indigo-600 rounded" /><span className="font-bold">📝 ランキングテキスト等をコピペ</span></label>
@@ -476,7 +474,7 @@ export default function Home() {
                       {activePreset.useUrl && (
                         <div className="relative">
                           <div className="flex items-center gap-3 mb-2 ml-1 text-indigo-600 font-bold"><LinkIcon className="w-5 h-5"/>🔗 YouTube/SoundCloudのURL</div>
-                          <textarea value={activePreset.url} onChange={(e) => updatePreset({url: e.target.value})} placeholder="https://www.youtube.com/...&#13;&#10;※改行して複数入力することで、一括処理が可能です" className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-4 py-4 md:px-6 md:py-5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all placeholder:text-slate-400 min-h-[120px]" />
+                          <textarea value={activePreset.url} onChange={(e) => updatePreset({url: e.target.value})} placeholder={"https://www.youtube.com/...\n※改行して複数入力することで、一括処理が可能です"} className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl px-4 py-4 md:px-6 md:py-5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all placeholder:text-slate-400 min-h-[120px]" />
                         </div>
                       )}
 
@@ -574,87 +572,85 @@ export default function Home() {
                           </motion.div>
                         )}
                       </AnimatePresence>
-                  </div>
+                    </div>
 
-                  {error && <div className="bg-rose-100 border-2 border-rose-300 text-rose-700 px-4 md:px-8 py-4 md:py-5 rounded-2xl font-bold text-base md:text-xl">{error}</div>}
+                    {error && <div className="bg-rose-100 border-2 border-rose-300 text-rose-700 px-4 md:px-8 py-4 md:py-5 rounded-2xl font-bold text-base md:text-xl">{error}</div>}
 
-                  {loading ? (
-                    <button onClick={() => abortController?.abort()} className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-5 md:py-8 rounded-2xl flex items-center justify-center gap-3 md:gap-4 transition-all shadow-xl active:scale-95 text-xl md:text-3xl tracking-widest">
-                      <Loader2 className="w-6 h-6 md:w-10 md:h-10 animate-spin" />
-                      <span>抽出を中止する</span>
-                    </button>
-                  ) : (
-                    <button onClick={handleExtract} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-5 md:py-8 rounded-2xl flex items-center justify-center gap-3 md:gap-4 transition-all shadow-xl active:scale-95 text-xl md:text-3xl tracking-widest">
-                      <Play className="w-6 h-6 md:w-10 md:h-10 fill-current" />
-                      <span>抽出スタート</span>
-                    </button>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="space-y-6 md:space-y-8 text-base md:text-xl">
-                 <h3 className="text-xl md:text-3xl font-bold mb-6 flex items-center gap-3 md:gap-4 text-slate-700">📁 プレイリスト作成 ＆ URL結合</h3>
-                 <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 md:p-20 flex flex-col items-center justify-center text-slate-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer mb-6 md:mb-8 text-center">
-                    <Upload className="w-10 h-10 md:w-16 md:h-16 mb-4 md:mb-5 text-indigo-400" /><span className="font-bold text-base md:text-2xl">URLが含まれた楽曲リスト (Excel/CSV) をアップロード</span>
-                 </div>
-                 <button className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-5 md:py-8 rounded-2xl flex items-center justify-center gap-3 md:gap-4 transition-all shadow-xl active:scale-95 text-lg md:text-3xl">
-                    <Play className="w-6 h-6 md:w-10 md:h-10 fill-current" /><span>プレイリストURLを生成する</span>
-                 </button>
-              </div>
-            )}
-
-            {/* 🌟 抽出結果 */}
-            {results.length > 0 && activeTabId !== 'playlist' && (
-              <div id="results-table" className="mt-10 md:mt-16 bg-white border-2 border-slate-200 rounded-3xl p-4 md:p-10 shadow-xl overflow-hidden mb-8">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 md:mb-10 border-b-[3px] border-indigo-100 pb-4 md:pb-6 gap-4 md:gap-6">
-                  <h3 className="text-2xl md:text-4xl font-bold text-indigo-800 shrink-0">抽出結果 ({results.length}曲)</h3>
-                  
-                  <div className="flex flex-wrap gap-2 md:gap-3 w-full justify-start lg:justify-end">
-                    <button onClick={downloadXLSX} className="flex justify-center items-center gap-1 md:gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><FileSpreadsheet className="w-3 h-3 md:w-4 md:h-4" /> XLSX</button>
-                    <button onClick={downloadCSV} className="flex justify-center items-center gap-1 md:gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><FileText className="w-3 h-3 md:w-4 md:h-4" /> CSV</button>
-                    <button onClick={downloadPDF} className="flex justify-center items-center gap-1 md:gap-2 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><FileText className="w-3 h-3 md:w-4 md:h-4" /> PDF</button>
-                    <button onClick={downloadPNG} className="flex justify-center items-center gap-1 md:gap-2 bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><FileImage className="w-3 h-3 md:w-4 md:h-4" /> 画像</button>
-                    <button onClick={downloadM3U8} className="flex justify-center items-center gap-1 md:gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><ListMusic className="w-3 h-3 md:w-4 md:h-4" /> M3U8</button>
-                    <button onClick={downloadXML} className="flex justify-center items-center gap-1 md:gap-2 bg-indigo-800 hover:bg-indigo-900 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><ListMusic className="w-3 h-3 md:w-4 md:h-4" /> XML</button>
-                    <button onClick={handleCopy} className="flex justify-center items-center gap-1 md:gap-2 bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><Copy className="w-3 h-3 md:w-4 md:h-4" /> {copyText}</button>
+                    {loading ? (
+                      <button onClick={() => abortController?.abort()} className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-5 md:py-8 rounded-2xl flex items-center justify-center gap-3 md:gap-4 transition-all shadow-xl active:scale-95 text-xl md:text-3xl tracking-widest">
+                        <Loader2 className="w-6 h-6 md:w-10 md:h-10 animate-spin" />
+                        <span>抽出を中止する</span>
+                      </button>
+                    ) : (
+                      <button onClick={handleExtract} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-5 md:py-8 rounded-2xl flex items-center justify-center gap-3 md:gap-4 transition-all shadow-xl active:scale-95 text-xl md:text-3xl tracking-widest">
+                        <Play className="w-6 h-6 md:w-10 md:h-10 fill-current" />
+                        <span>抽出スタート</span>
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse whitespace-nowrap text-base md:text-xl">
-                    <thead>
-                      <tr className="border-b-4 border-slate-200 text-slate-500 font-bold text-base md:text-2xl bg-slate-50">
-                        <th className="py-3 md:py-5 px-4 md:px-8 rounded-tl-xl">曲名</th>
-                        <th className="py-3 md:py-5 px-4 md:px-8">合成音声</th>
-                        <th className="py-3 md:py-5 px-4 md:px-8">BPM</th>
-                        <th className="py-3 md:py-5 px-4 md:px-8">Key</th>
-                        <th className="py-3 md:py-5 px-4 md:px-8">MMD</th>
-                        <th className="py-3 md:py-5 px-4 md:px-8 rounded-tr-xl" data-html2canvas-ignore>リンク</th>
-                      </tr>
-                    </thead>
-                    <tbody className="font-bold text-slate-700 select-text">
-                      {results.map((item, idx) => (
-                        <tr key={idx} className="border-b-2 border-slate-100 hover:bg-indigo-50 transition-colors">
-                          <td className="py-4 md:py-6 px-4 md:px-8">{item.曲名}</td>
-                          <td className="py-4 md:py-6 px-4 md:px-8 text-slate-500">{item.合成音声 || "-"}</td>
-                          <td className="py-4 md:py-6 px-4 md:px-8 text-slate-500">{item.BPM || "-"}</td>
-                          <td className="py-4 md:py-6 px-4 md:px-8 text-slate-500">{item.Key || "-"}</td>
-                          <td className="py-4 md:py-6 px-4 md:px-8 text-slate-500">{item.MMD}</td>
-                          <td className="py-4 md:py-6 px-4 md:px-8 flex flex-wrap gap-2 md:gap-4" data-html2canvas-ignore>
-                            <a href={item.URL} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-400 bg-indigo-100 px-3 py-1 md:px-4 md:py-2 rounded-lg transition-colors text-sm md:text-lg">YouTube</a>
-                          </td>
+              ) : (
+                <div className="w-full space-y-6 md:space-y-8 text-base md:text-xl">
+                   <h3 className="text-xl md:text-3xl font-bold mb-6 flex items-center gap-3 md:gap-4 text-slate-700">📁 プレイリスト作成 ＆ URL結合</h3>
+                   <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 md:p-20 flex flex-col items-center justify-center text-slate-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer mb-6 md:mb-8 text-center">
+                      <Upload className="w-10 h-10 md:w-16 md:h-16 mb-4 md:mb-5 text-indigo-400" /><span className="font-bold text-base md:text-2xl">URLが含まれた楽曲リスト (Excel/CSV) をアップロード</span>
+                   </div>
+                   <button className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-5 md:py-8 rounded-2xl flex items-center justify-center gap-3 md:gap-4 transition-all shadow-xl active:scale-95 text-lg md:text-3xl">
+                      <Play className="w-6 h-6 md:w-10 md:h-10 fill-current" /><span>プレイリストURLを生成する</span>
+                   </button>
+                </div>
+              )}
+
+              {/* 🌟 抽出結果 */}
+              {results.length > 0 && activeTabId !== 'playlist' && (
+                <div id="results-table" className="mt-10 md:mt-16 bg-white border-2 border-slate-200 rounded-3xl p-4 md:p-10 shadow-xl overflow-hidden mb-8">
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 md:mb-10 border-b-[3px] border-indigo-100 pb-4 md:pb-6 gap-4 md:gap-6">
+                    <h3 className="text-2xl md:text-4xl font-bold text-indigo-800 shrink-0">抽出結果 ({results.length}曲)</h3>
+                    
+                    <div className="flex flex-wrap gap-2 md:gap-3 w-full justify-start lg:justify-end">
+                      <button onClick={downloadXLSX} className="flex justify-center items-center gap-1 md:gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><FileSpreadsheet className="w-3 h-3 md:w-4 md:h-4" /> XLSX</button>
+                      <button onClick={downloadCSV} className="flex justify-center items-center gap-1 md:gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><FileText className="w-3 h-3 md:w-4 md:h-4" /> CSV</button>
+                      <button onClick={downloadPDF} className="flex justify-center items-center gap-1 md:gap-2 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><FileText className="w-3 h-3 md:w-4 md:h-4" /> PDF</button>
+                      <button onClick={downloadPNG} className="flex justify-center items-center gap-1 md:gap-2 bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><FileImage className="w-3 h-3 md:w-4 md:h-4" /> 画像</button>
+                      <button onClick={downloadM3U8} className="flex justify-center items-center gap-1 md:gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><ListMusic className="w-3 h-3 md:w-4 md:h-4" /> M3U8</button>
+                      <button onClick={downloadXML} className="flex justify-center items-center gap-1 md:gap-2 bg-indigo-800 hover:bg-indigo-900 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><ListMusic className="w-3 h-3 md:w-4 md:h-4" /> XML</button>
+                      <button onClick={handleCopy} className="flex justify-center items-center gap-1 md:gap-2 bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-colors text-xs md:text-sm"><Copy className="w-3 h-3 md:w-4 md:h-4" /> {copyText}</button>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse whitespace-nowrap text-base md:text-xl">
+                      <thead>
+                        <tr className="border-b-4 border-slate-200 text-slate-500 font-bold text-base md:text-2xl bg-slate-50">
+                          <th className="py-3 md:py-5 px-4 md:px-8 rounded-tl-xl">曲名</th>
+                          <th className="py-3 md:py-5 px-4 md:px-8">合成音声</th>
+                          <th className="py-3 md:py-5 px-4 md:px-8">BPM</th>
+                          <th className="py-3 md:py-5 px-4 md:px-8">Key</th>
+                          <th className="py-3 md:py-5 px-4 md:px-8">MMD</th>
+                          <th className="py-3 md:py-5 px-4 md:px-8 rounded-tr-xl" data-html2canvas-ignore={true}>リンク</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="font-bold text-slate-700 select-text">
+                        {results.map((item, idx) => (
+                          <tr key={idx} className="border-b-2 border-slate-100 hover:bg-indigo-50 transition-colors">
+                            <td className="py-4 md:py-6 px-4 md:px-8">{item.曲名}</td>
+                            <td className="py-4 md:py-6 px-4 md:px-8 text-slate-500">{item.合成音声 || "-"}</td>
+                            <td className="py-4 md:py-6 px-4 md:px-8 text-slate-500">{item.BPM || "-"}</td>
+                            <td className="py-4 md:py-6 px-4 md:px-8 text-slate-500">{item.Key || "-"}</td>
+                            <td className="py-4 md:py-6 px-4 md:px-8 text-slate-500">{item.MMD}</td>
+                            <td className="py-4 md:py-6 px-4 md:px-8 flex flex-wrap gap-2 md:gap-4" data-html2canvas-ignore={true}>
+                              <a href={item.URL} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-400 bg-indigo-100 px-3 py-1 md:px-4 md:py-2 rounded-lg transition-colors text-sm md:text-lg">YouTube</a>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
         </motion.div>
       )}
-      
-      
 
       {/* 🌟 設定・アカウント モーダル */}
       <AnimatePresence>
