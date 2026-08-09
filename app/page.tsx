@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
-import { Play, Loader2, Music2, Settings2, ChevronDown, User, Key, Mail, X, FileText, Link as LinkIcon, Upload, Download, Copy, Image as ImageIcon, Plus, Settings, MessageSquare, AlertCircle, RefreshCw, Share2, ListMusic, FileSpreadsheet, FileImage, Paperclip } from "lucide-react";
+import { Play, Loader2, Music2, Settings2, ChevronDown, User, Key, Mail, X, FileText, Link as LinkIcon, Upload, Download, Copy, Plus, Settings, AlertCircle, RefreshCw, Share2, ListMusic, FileSpreadsheet, FileImage, Paperclip } from "lucide-react";
 import * as XLSX from "xlsx";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -34,6 +34,16 @@ type PresetData = {
   addAnalysis: boolean;
   addBpm: boolean;
   filename: string;
+};
+
+// 🌟 結果データの型（設計図）を明確に定義して any エラーを解消
+type ResultItem = {
+  曲名: string;
+  合成音声?: string;
+  BPM?: string | number;
+  Key?: string;
+  MMD?: string;
+  URL?: string;
 };
 
 const createDefaultPreset = (id: number): PresetData => ({
@@ -193,7 +203,7 @@ export default function Home() {
 
   const downloadCSV = () => {
     let csvContent = "曲名,合成音声,BPM,Key,MMD,リンク\n";
-    results.forEach(r => { csvContent += `"${r.曲名}","${r.合成音声 || '-'}","${r.BPM || '-'}","${r.Key || '-'}","${r.MMD || '-'}","${r.URL}"\n`; });
+    results.forEach(r => { csvContent += `"${r.曲名}","${r.合成音声 || '-'}","${r.BPM || '-'}","${r.Key || '-'}","${r.MMD || '-'}","${r.URL || '-'}"\n`; });
     const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = getFilename("csv"); a.click();
@@ -232,7 +242,7 @@ export default function Home() {
 
   const handleCopy = () => {
     let txtContent = "曲名\t合成音声\tBPM\tKey\tMMD\tリンク\n";
-    results.forEach(r => { txtContent += `${r.曲名}\t${r.合成音声 || '-'}\t${r.BPM || '-'}\t${r.Key || '-'}\t${r.MMD || '-'}\t${r.URL}\n`; });
+    results.forEach(r => { txtContent += `${r.曲名}\t${r.合成音声 || '-'}\t${r.BPM || '-'}\t${r.Key || '-'}\t${r.MMD || '-'}\t${r.URL || '-'}\n`; });
     navigator.clipboard.writeText(txtContent);
     setCopyText("コピーできました");
     setTimeout(() => setCopyText("コピー"), 2000);
@@ -240,7 +250,7 @@ export default function Home() {
 
   const downloadM3U8 = () => {
     let content = "#EXTM3U\n";
-    results.forEach(r => { content += `#EXTINF:-1,${r.曲名}\n${r.URL}\n`; });
+    results.forEach(r => { content += `#EXTINF:-1,${r.曲名}\n${r.URL || ''}\n`; });
     const blob = new Blob([content], { type: 'application/vnd.apple.mpegurl' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = getFilename("m3u8"); a.click();
@@ -261,7 +271,7 @@ export default function Home() {
   };
 
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<ResultItem[]>([]);
   const [error, setError] = useState("");
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
