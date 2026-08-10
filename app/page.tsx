@@ -280,7 +280,7 @@ export default function Home() {
     try {
       const endpoint = authMode === "login" ? "login" : authMode === "register" ? "register" : "forgot";
       const payload = authMode === "forgot" ? { email: authEmail } : { username: authName, password: authPass, email: authEmail };
-      const res = await fetch(`http://127.0.0.1:8000/api/auth/${endpoint}`, {
+      const res = await fetch(`https://music-extractor-backend-ypwx.onrender.com/api/auth/${endpoint}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -343,7 +343,7 @@ export default function Home() {
     setAbortController(controller);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/extract/url", {
+      const res = await fetch("https://music-extractor-backend-ypwx.onrender.com/api/extract/url", {
         method: "POST", headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
